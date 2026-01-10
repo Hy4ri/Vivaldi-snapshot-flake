@@ -24,24 +24,23 @@
   in {
     packages = forAllSystems (system: let
       pkgs = nixpkgsFor.${system};
-      base = pkgs.callPackage ./package.nix {};
-    in {
-      vivaldi-snapshot = base;
-      # Version with proprietary codecs for video playback
-      vivaldi-snapshot-with-codecs = base.override {
-        proprietaryCodecs = true;
+      base = pkgs.callPackage ./package.nix {
         vivaldi-ffmpeg-codecs = pkgs.vivaldi-ffmpeg-codecs;
       };
-      default = self.packages.${system}.vivaldi-snapshot;
+    in {
+      vivaldi-snapshot = base;
+      # Alias for backwards compatibility
+      vivaldi-snapshot-with-codecs = base;
+      default = base;
     });
 
     # Overlay for easy integration into NixOS configurations
     overlays.default = final: prev: {
-      vivaldi-snapshot = final.callPackage ./package.nix {};
-      vivaldi-snapshot-with-codecs = (final.callPackage ./package.nix {}).override {
-        proprietaryCodecs = true;
+      vivaldi-snapshot = final.callPackage ./package.nix {
         vivaldi-ffmpeg-codecs = final.vivaldi-ffmpeg-codecs;
       };
+      # Alias for backwards compatibility
+      vivaldi-snapshot-with-codecs = final.vivaldi-snapshot;
     };
   };
 }

@@ -53,7 +53,7 @@
   makeWrapper,
   wayland,
   pipewire,
-  proprietaryCodecs ? false,
+  proprietaryCodecs ? true,
   vivaldi-ffmpeg-codecs ? null,
   enableWidevine ? false,
   widevine-cdm ? null,
