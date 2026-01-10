@@ -35,3 +35,25 @@ environment.systemPackages = [ pkgs.vivaldi-snapshot ];
 # Home Manager
 home.packages = [ pkgs.vivaldi-snapshot ];
 ```
+
+## Proprietary Codecs (Video Playback)
+
+For WebM, H.264, and other video format support, use the `-with-codecs` variant:
+
+### Quick test
+
+```bash
+nix run github:Hy4ri/vivaldi-snapshot-flake#vivaldi-snapshot-with-codecs
+```
+
+### Installation
+
+```nix
+# NixOS
+environment.systemPackages = [ pkgs.vivaldi-snapshot-with-codecs ];
+
+# Home Manager
+home.packages = [ pkgs.vivaldi-snapshot-with-codecs ];
+```
+
+> **Note:** The codecs version includes `vivaldi-ffmpeg-codecs` for proprietary media support.
