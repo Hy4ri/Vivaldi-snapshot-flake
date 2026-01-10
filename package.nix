@@ -210,14 +210,14 @@ stdenv.mkDerivation rec {
           "$out"/opt/vivaldi-snapshot/product_logo_''${d}.png \
           "$out"/share/icons/hicolor/''${d}x''${d}/apps/vivaldi-snapshot.png
       done
-      # Wrap the actual binary, not a symlink
-      wrapProgram "$out/opt/vivaldi-snapshot/vivaldi" \
+      # Wrap the actual binary (vivaldi-bin), not the shell script (vivaldi)
+      wrapProgram "$out/opt/vivaldi-snapshot/vivaldi-bin" \
         --add-flags ${lib.escapeShellArg commandLineArgs} \
         --prefix XDG_DATA_DIRS : ${gtk3}/share/gsettings-schemas/${gtk3.name}/ \
         --prefix LD_LIBRARY_PATH : ${libPath} \
         --prefix PATH : ${coreutils}/bin \
         ''${qtWrapperArgs[@]}
-      # Create bin directory and symlink after wrapping
+      # Create bin directory and symlink to the launcher script
       mkdir "$out/bin"
       ln -s "$out/opt/vivaldi-snapshot/vivaldi" "$out/bin/vivaldi-snapshot"
     ''
