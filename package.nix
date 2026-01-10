@@ -199,8 +199,6 @@ stdenv.mkDerivation rec {
       runHook preInstall
       mkdir -p "$out"
       cp -r opt "$out"
-      mkdir "$out/bin"
-      ln -s "$out/opt/vivaldi-snapshot/vivaldi" "$out/bin/vivaldi-snapshot"
       mkdir -p "$out/share"
       cp -r usr/share/{applications,xfce4} "$out"/share
       substituteInPlace "$out"/share/applications/*.desktop \
@@ -212,12 +210,16 @@ stdenv.mkDerivation rec {
           "$out"/opt/vivaldi-snapshot/product_logo_''${d}.png \
           "$out"/share/icons/hicolor/''${d}x''${d}/apps/vivaldi-snapshot.png
       done
-      wrapProgram "$out/bin/vivaldi-snapshot" \
+      # Wrap the actual binary, not a symlink
+      wrapProgram "$out/opt/vivaldi-snapshot/vivaldi" \
         --add-flags ${lib.escapeShellArg commandLineArgs} \
         --prefix XDG_DATA_DIRS : ${gtk3}/share/gsettings-schemas/${gtk3.name}/ \
         --prefix LD_LIBRARY_PATH : ${libPath} \
         --prefix PATH : ${coreutils}/bin \
         ''${qtWrapperArgs[@]}
+      # Create bin directory and symlink after wrapping
+      mkdir "$out/bin"
+      ln -s "$out/opt/vivaldi-snapshot/vivaldi" "$out/bin/vivaldi-snapshot"
     ''
     + lib.optionalString enableWidevine ''
       ln -sf ${widevine-cdm}/share/google/chrome/WidevineCdm $out/opt/vivaldi-snapshot/WidevineCdm
