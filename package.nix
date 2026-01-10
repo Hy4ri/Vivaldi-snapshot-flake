@@ -219,7 +219,7 @@ stdenv.mkDerivation rec {
         ''${qtWrapperArgs[@]}
       # Create bin directory and symlink to the launcher script
       mkdir "$out/bin"
-      ln -s "$out/opt/vivaldi-snapshot/vivaldi" "$out/bin/vivaldi-snapshot"
+      ln -s "$out/opt/vivaldi-snapshot/vivaldi-snapshot" "$out/bin/vivaldi-snapshot"
     ''
     + lib.optionalString enableWidevine ''
       ln -sf ${widevine-cdm}/share/google/chrome/WidevineCdm $out/opt/vivaldi-snapshot/WidevineCdm
