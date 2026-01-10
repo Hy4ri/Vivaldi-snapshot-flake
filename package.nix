@@ -166,7 +166,7 @@ stdenv.mkDerivation rec {
     + lib.optionalString (stdenv.hostPlatform.is64bit) (
       ":" + lib.makeSearchPathOutput "lib" "lib64" buildInputs
     )
-    + ":$out/opt/vivaldi/lib";
+    + ":$out/opt/vivaldi-snapshot/lib";
 
   buildPhase =
     ''
@@ -176,15 +176,15 @@ stdenv.mkDerivation rec {
         patchelf \
           --set-interpreter "$(cat $NIX_CC/nix-support/dynamic-linker)" \
           --set-rpath "${libPath}" \
-          opt/vivaldi/$f
+          opt/vivaldi-snapshot/$f
       done
 
       for f in libGLESv2.so libqt5_shim.so libqt6_shim.so; do
-        patchelf --set-rpath "${libPath}" opt/vivaldi/$f
+        patchelf --set-rpath "${libPath}" opt/vivaldi-snapshot/$f
       done
     ''
     + lib.optionalString proprietaryCodecs ''
-      ln -s ${vivaldi-ffmpeg-codecs}/lib/libffmpeg.so opt/vivaldi/libffmpeg.so.''${version%\.*\.*}
+      ln -s ${vivaldi-ffmpeg-codecs}/lib/libffmpeg.so opt/vivaldi-snapshot/libffmpeg.so.''${version%\.*\.*}
     ''
     + ''
       echo "Finished patching Vivaldi binaries"
@@ -200,7 +200,7 @@ stdenv.mkDerivation rec {
       mkdir -p "$out"
       cp -r opt "$out"
       mkdir "$out/bin"
-      ln -s "$out/opt/vivaldi/vivaldi" "$out/bin/vivaldi-snapshot"
+      ln -s "$out/opt/vivaldi-snapshot/vivaldi" "$out/bin/vivaldi-snapshot"
       mkdir -p "$out/share"
       cp -r usr/share/{applications,xfce4} "$out"/share
       substituteInPlace "$out"/share/applications/*.desktop \
@@ -209,7 +209,7 @@ stdenv.mkDerivation rec {
       for d in 16 24 32 48 64 128 256; do
         mkdir -p "$out"/share/icons/hicolor/''${d}x''${d}/apps
         ln -s \
-          "$out"/opt/vivaldi/product_logo_''${d}.png \
+          "$out"/opt/vivaldi-snapshot/product_logo_''${d}.png \
           "$out"/share/icons/hicolor/''${d}x''${d}/apps/vivaldi-snapshot.png
       done
       wrapProgram "$out/bin/vivaldi-snapshot" \
@@ -220,7 +220,7 @@ stdenv.mkDerivation rec {
         ''${qtWrapperArgs[@]}
     ''
     + lib.optionalString enableWidevine ''
-      ln -sf ${widevine-cdm}/share/google/chrome/WidevineCdm $out/opt/vivaldi/WidevineCdm
+      ln -sf ${widevine-cdm}/share/google/chrome/WidevineCdm $out/opt/vivaldi-snapshot/WidevineCdm
     ''
     + ''
       runHook postInstall
