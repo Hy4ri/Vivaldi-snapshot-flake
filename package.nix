@@ -69,8 +69,8 @@ stdenv.mkDerivation rec {
 
   suffix =
     {
-      aarch64-linux = "sha256-TsUG4zMsKXDxckVwk22xMX05fEY8hAgYbhj5PgjPDn8=";
-      x86_64-linux = "sha256-BvSr4Kvzxx1QPG/k2uMZ7wVnIABqMa2fTG+euhrUklQ=";
+      aarch64-linux = "arm64";
+      x86_64-linux = "amd64";
     }
     .${
       stdenv.hostPlatform.system

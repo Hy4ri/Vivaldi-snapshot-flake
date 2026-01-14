@@ -73,8 +73,8 @@ temp_file=$(mktemp)
 sed "s/version = ".*";/version = \"$version\";/" "$package_file" >"$temp_file"
 
 # Update hashes
-sed -i "s|x86_64-linux = ".*";|x86_64-linux = \"$hash_amd64_sri\";|" "$temp_file"
-sed -i "s|aarch64-linux = ".*";|aarch64-linux = \"$hash_arm64_sri\";|" "$temp_file"
+sed -i "s|x86_64-linux = \"sha256-.*\";|x86_64-linux = \"$hash_amd64_sri\";|" "$temp_file"
+sed -i "s|aarch64-linux = \"sha256-.*\";|aarch64-linux = \"$hash_arm64_sri\";|" "$temp_file"
 
 # Move back
 mv "$temp_file" "$package_file"
