@@ -29,8 +29,6 @@
       };
     in {
       vivaldi-snapshot = base;
-      # Alias for backwards compatibility
-      vivaldi-snapshot-with-codecs = base;
       default = base;
     });
 
@@ -39,8 +37,6 @@
       vivaldi-snapshot = final.callPackage ./package.nix {
         vivaldi-ffmpeg-codecs = final.vivaldi-ffmpeg-codecs;
       };
-      # Alias for backwards compatibility
-      vivaldi-snapshot-with-codecs = final.vivaldi-snapshot;
     };
   };
 }

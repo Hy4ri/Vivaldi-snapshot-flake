@@ -65,7 +65,7 @@
 }:
 stdenv.mkDerivation rec {
   pname = "vivaldi-snapshot";
-  version = "7.8.3916.3";
+  version = "7.8.3919.3";
 
   suffix =
     {
