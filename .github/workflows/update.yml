@@ -30,7 +30,7 @@ jobs:
           # Get list of files, find the one matching the pattern, sort by version (using sort -V), tail the last one
           # Pattern: vivaldi-snapshot_7.9.4000.1-1_amd64.deb
           
-          LATEST_VERSION=$(curl -s "https://repo.vivaldi.com/archive/deb/pool/main/v/vivaldi-snapshot/" | \
+          LATEST_VERSION=$(curl -s "https://repo.vivaldi.com/archive/deb/pool/main/" | \
             grep -oP 'vivaldi-snapshot_\d+\.\d+\.\d+\.\d+-1_amd64\.deb' | \
             sed -E 's/vivaldi-snapshot_([0-9.]+)-1_amd64.deb/\1/' | \
             sort -V | \
@@ -60,12 +60,14 @@ jobs:
         if: steps.check.outputs.update_needed == 'true'
         run: |
           ./update-version.sh "${{ steps.check.outputs.version }}"
+          # Update version.json for the badge
+          echo '{"version": "${{ steps.check.outputs.version }}"}' > version.json
 
       - name: Commit and Push
         if: steps.check.outputs.update_needed == 'true'
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add package.nix
+          git add package.nix version.json
           git commit -m "chore: update vivaldi-snapshot to ${{ steps.check.outputs.version }}"
           git push
