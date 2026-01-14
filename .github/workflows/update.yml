@@ -1,0 +1,71 @@
+name: Update Vivaldi Snapshot
+
+on:
+  schedule:
+    # Run every day at 17:00 UTC (5:00 PM) to catch typical afternoon releases
+    - cron: '0 17 * * *'
+  workflow_dispatch: # Allow manual trigger
+
+jobs:
+  update-vivaldi:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: cachix/install-nix-action@v27
+        with:
+          nix_path: nixpkgs=channel:nixos-unstable
+
+      - name: Check for updates
+        id: check
+        run: |
+          # Fetch the directory listing from Vivaldi's archive
+          # Sort by time/date usually works, or we extract the highest version number
+          # We'll use the 'archive' repo which lists all deb files.
+          
+          echo "Fetching latest version..."
+          
+          # Get list of files, find the one matching the pattern, sort by version (using sort -V), tail the last one
+          # Pattern: vivaldi-snapshot_7.9.4000.1-1_amd64.deb
+          
+          LATEST_VERSION=$(curl -s "https://repo.vivaldi.com/archive/deb/pool/main/v/vivaldi-snapshot/" | \
+            grep -oP 'vivaldi-snapshot_\d+\.\d+\.\d+\.\d+-1_amd64\.deb' | \
+            sed -E 's/vivaldi-snapshot_([0-9.]+)-1_amd64.deb/\1/' | \
+            sort -V | \
+            tail -n 1)
+          
+          if [ -z "$LATEST_VERSION" ]; then
+            echo "Could not find latest version."
+            exit 1
+          fi
+          
+          echo "Latest found: $LATEST_VERSION"
+          
+          # Get current version from package.nix
+          CURRENT_VERSION=$(grep -oP 'version = "\K[^"+' package.nix)
+          echo "Current: $CURRENT_VERSION"
+          
+          if [ "$LATEST_VERSION" != "$CURRENT_VERSION" ]; then
+            echo "New version available!"
+            echo "update_needed=true" >> $GITHUB_OUTPUT
+            echo "version=$LATEST_VERSION" >> $GITHUB_OUTPUT
+          else
+            echo "Already up to date."
+            echo "update_needed=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Update Flake
+        if: steps.check.outputs.update_needed == 'true'
+        run: |
+          ./update-version.sh "${{ steps.check.outputs.version }}"
+
+      - name: Commit and Push
+        if: steps.check.outputs.update_needed == 'true'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add package.nix
+          git commit -m "chore: update vivaldi-snapshot to ${{ steps.check.outputs.version }}"
+          git push

@@ -18,9 +18,14 @@ get_hash() {
   rm -f "$temp_file"
 }
 
-# Ask for version
-echo "Current directory: $(pwd)"
-read -p "Enter Vivaldi Snapshot version to download (e.g., 7.9.4000.1): " version
+# 1. Ask for version
+if [ -n "$1" ]; then
+    version="$1"
+    echo "Version provided from argument: $version"
+else
+    echo "Current directory: $(pwd)"
+    read -p "Enter Vivaldi Snapshot version to download (e.g., 7.9.4000.1): " version
+fi
 
 if [[ -z "$version" ]]; then
   echo "Error: Version cannot be empty."
