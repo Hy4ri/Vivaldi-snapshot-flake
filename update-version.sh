@@ -75,7 +75,7 @@ echo "Updating $package_file..."
 # Use a temporary file
 temp_file=$(mktemp)
 
-sed "s/version = ".*";/version = \"$version\";/" "$package_file" >"$temp_file"
+sed "s/version = \".*\";/version = \"$version\";/" "$package_file" >"$temp_file"
 
 # Update hashes
 sed -i "s|x86_64-linux = \"sha256-.*\";|x86_64-linux = \"$hash_amd64_sri\";|" "$temp_file"
