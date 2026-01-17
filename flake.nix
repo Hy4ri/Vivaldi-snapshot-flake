@@ -26,6 +26,8 @@
       pkgs = nixpkgsFor.${system};
       base = pkgs.callPackage ./package.nix {
         vivaldi-ffmpeg-codecs = pkgs.vivaldi-ffmpeg-codecs;
+        enableWidevine = true;
+        widevine-cdm = pkgs.widevine-cdm;
       };
     in {
       vivaldi-snapshot = base;
@@ -36,6 +38,8 @@
     overlays.default = final: prev: {
       vivaldi-snapshot = final.callPackage ./package.nix {
         vivaldi-ffmpeg-codecs = final.vivaldi-ffmpeg-codecs;
+        enableWidevine = true;
+        widevine-cdm = final.widevine-cdm;
       };
     };
   };

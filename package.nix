@@ -57,6 +57,8 @@
   vivaldi-ffmpeg-codecs ? null,
   enableWidevine ? false,
   widevine-cdm ? null,
+  # Performance options
+  enableHardwareAcceleration ? true,
   commandLineArgs ? "",
   pulseSupport ? stdenv.hostPlatform.isLinux,
   libpulseaudio,
@@ -212,7 +214,14 @@ stdenv.mkDerivation rec {
       done
       # Wrap the actual binary (vivaldi-bin), not the shell script (vivaldi)
       wrapProgram "$out/opt/vivaldi-snapshot/vivaldi-bin" \
-        --add-flags ${lib.escapeShellArg commandLineArgs} \
+        --add-flags ${lib.escapeShellArg (lib.concatStringsSep " " (lib.optionals enableHardwareAcceleration [
+          "--enable-gpu-rasterization"
+          "--enable-zero-copy"
+          "--enable-features=VaapiVideoDecoder,VaapiVideoEncoder,VaapiIgnoreDriverChecks"
+          "--disable-features=UseChromeOSDirectVideoDecoder"
+          "--ignore-gpu-blocklist"
+        ]
+        ++ lib.optionals (commandLineArgs != "") [commandLineArgs]))} \
         --prefix XDG_DATA_DIRS : ${gtk3}/share/gsettings-schemas/${gtk3.name}/ \
         --prefix LD_LIBRARY_PATH : ${libPath} \
         --prefix PATH : ${coreutils}/bin \
