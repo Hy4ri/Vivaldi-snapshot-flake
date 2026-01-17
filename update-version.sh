@@ -18,6 +18,23 @@ get_hash() {
   rm -f "$temp_file"
 }
 
+get_blog_url() {
+  local version="$1"
+  # Extract build.patch (e.g., "7.8.3921.9" -> "3921-9")
+  local build_patch
+  build_patch=$(echo "$version" | sed -E 's/^[0-9]+\.[0-9]+\.([0-9]+)\.([0-9]+)$/\1-\2/')
+  
+  # Fetch snapshots page and find the matching blog post URL
+  local blog_url
+  blog_url=$(curl -sL "https://vivaldi.com/blog/snapshots/" | \
+    grep -oP 'href="https://vivaldi\.com/blog/desktop/[^"]*snapshot-'"$build_patch"'/"' | \
+    head -n 1 | \
+    sed 's/href="//' | \
+    sed 's/"$//')
+  
+  echo "$blog_url"
+}
+
 # 1. Ask for version
 if [ -n "$1" ]; then
     version="$1"
@@ -62,6 +79,16 @@ else
   echo "  Hash: $hash_arm64_sri"
 fi
 
+# Fetch blog URL
+echo "Fetching blog post URL..."
+blog_url=$(get_blog_url "$version")
+if [[ -z "$blog_url" ]]; then
+  echo "Warning: Could not find blog post for this version. Using default."
+  blog_url="https://vivaldi.com/blog/snapshots/"
+else
+  echo "  Blog URL: $blog_url"
+fi
+
 # Update package.nix
 package_file="package.nix"
 
@@ -84,6 +111,16 @@ sed -i "s|aarch64-linux = \"sha256-.*\";|aarch64-linux = \"$hash_arm64_sri\";|" 
 # Move back
 mv "$temp_file" "$package_file"
 
+# Update version.json with version and blog URL
+echo "Updating version.json..."
+cat > version.json << EOF
+{
+  "version": "$version",
+  "blogUrl": "$blog_url"
+}
+EOF
+
 echo "------------------------------------------------"
 echo "Success! Updated $package_file to version $version"
+echo "Blog URL: $blog_url"
 echo "------------------------------------------------"

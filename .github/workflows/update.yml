@@ -60,8 +60,7 @@ jobs:
         if: steps.check.outputs.update_needed == 'true'
         run: |
           ./update-version.sh "${{ steps.check.outputs.version }}"
-          # Update version.json for the badge
-          echo '{"version": "${{ steps.check.outputs.version }}"}' > version.json
+          # version.json is now updated by update-version.sh with version and blogUrl
 
       - name: Commit and Push
         if: steps.check.outputs.update_needed == 'true'
