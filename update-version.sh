@@ -120,7 +120,11 @@ cat > version.json << EOF
 }
 EOF
 
+# Update README.md badge link
+echo "Updating README.md..."
+sed -i "s|](https://vivaldi.com/blog/[^)]*)|]($blog_url)|" README.md
+
 echo "------------------------------------------------"
-echo "Success! Updated $package_file to version $version"
+echo "Success! Updated package.nix to version $version"
 echo "Blog URL: $blog_url"
 echo "------------------------------------------------"
