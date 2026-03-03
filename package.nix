@@ -67,7 +67,7 @@
 }:
 stdenv.mkDerivation rec {
   pname = "vivaldi-snapshot";
-  version = "7.9.3963.3";
+  version = "7.9.3966.3";
 
   suffix =
     {
@@ -82,8 +82,8 @@ stdenv.mkDerivation rec {
     url = "https://downloads.vivaldi.com/snapshot/vivaldi-snapshot_${version}-1_${suffix}.deb";
     hash =
       {
-        aarch64-linux = "sha256-+lWiXIijT4AvY4pr1VmuSvj5HiBr1XxKRpYC7pg5L4M=";
-        x86_64-linux = "sha256-tbpKinr7eZodgh4tnyUX91rbEpoRTgNnfa+Id8rm4Fc=";
+        aarch64-linux = "sha256-HPmP5WT/prJ5eOzLYIx8SW5wGHf7xYfV5LYoGxpj53I=";
+        x86_64-linux = "sha256-IQcpF6vrI6X8XHxUQ4RgNPgh1iNUsUsPWl/OzoFC0x0=";
       }
       .${
         stdenv.hostPlatform.system
