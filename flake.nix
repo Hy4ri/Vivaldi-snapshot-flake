@@ -16,6 +16,8 @@
 
     forAllSystems = nixpkgs.lib.genAttrs supportedSystems;
 
+    enableWidevine = true;
+
     nixpkgsFor = forAllSystems (system:
       import nixpkgs {
         inherit system;
@@ -26,7 +28,7 @@
       pkgs = nixpkgsFor.${system};
       base = pkgs.callPackage ./package.nix {
         vivaldi-ffmpeg-codecs = pkgs.vivaldi-ffmpeg-codecs;
-        enableWidevine = true;
+        inherit enableWidevine;
         widevine-cdm = pkgs.widevine-cdm;
       };
     in {
@@ -35,10 +37,10 @@
     });
 
     # Overlay for easy integration into NixOS configurations
-    overlays.default = final: prev: {
+    overlays.default = final: _prev: {
       vivaldi-snapshot = final.callPackage ./package.nix {
         vivaldi-ffmpeg-codecs = final.vivaldi-ffmpeg-codecs;
-        enableWidevine = true;
+        inherit enableWidevine;
         widevine-cdm = final.widevine-cdm;
       };
     };
