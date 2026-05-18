@@ -55,16 +55,29 @@ get_blog_url_snapshot() {
 }
 
 get_blog_url_stable() {
-  # Extract the most recent blog post from the desktop blog page
-  # (blog category pages list posts in reverse chronological order)
+  local version="$1"
+  local major_minor
+  major_minor=$(echo "$version" | sed -E 's/^([0-9]+)\.([0-9]+)\.[0-9]+\.[0-9]+$/\1-\2/')
+
+  # Strategy 1: try matching the major.minor version in the URL
   local blog_url
   blog_url=$(curl -sL "https://vivaldi.com/blog/desktop/" | \
-    grep -oP 'href="https://vivaldi\.com/blog/desktop/[^"]+/"' | \
+    grep -oP 'href="https://vivaldi\.com/blog/desktop/[^"]*'"$major_minor"'[^"]*/"' | \
     grep -v '/blog/desktop/$' | \
-    grep -v '/blog/desktop/page/' | \
     head -n 1 | \
     sed 's/href="//' | \
     sed 's/"$//')
+
+  # Strategy 2: fallback to the most recent desktop blog post
+  if [[ -z "$blog_url" ]]; then
+    blog_url=$(curl -sL "https://vivaldi.com/blog/desktop/" | \
+      grep -oP 'href="https://vivaldi\.com/blog/desktop/[^"]+/"' | \
+      grep -v '/blog/desktop/$' | \
+      grep -v '/blog/desktop/page/' | \
+      head -n 1 | \
+      sed 's/href="//' | \
+      sed 's/"$//')
+  fi
 
   echo "$blog_url"
 }
@@ -236,13 +249,11 @@ EOF
 echo "Updating README.md..."
 
 if [[ "$channel" == "snapshot" ]]; then
-  # Update the snapshot badge link — match both /blog/snapshots/ and /blog/desktop/ URLs
-  # (RC release blog URLs live under /blog/desktop/)
-  sed -i "s|](https://vivaldi.com/blog/snapshots/[^)]*)|]($blog_url)|" README.md
-  sed -i "s|](https://vivaldi.com/blog/desktop/[^)]*)|]($blog_url)|" README.md
+  # Update the snapshot badge link — scoped to the snapshot badge line only
+  sed -i "/vivaldi-snapshot&/s|](https://vivaldi.com/blog/[^)]*)|]($blog_url)|" README.md
 else
-  # Update the stable badge link (matches ](https://vivaldi.com/blog/desktop/...))
-  sed -i "s|](https://vivaldi.com/blog/desktop/[^)]*)|]($blog_url)|" README.md
+  # Update the stable badge link — scoped to the stable badge line only
+  sed -i "/vivaldi-stable&/s|](https://vivaldi.com/blog/[^)]*)|]($blog_url)|" README.md
 fi
 
 echo "------------------------------------------------"
