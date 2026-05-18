@@ -64,10 +64,18 @@
   libpulseaudio,
   kerberosSupport ? true,
   libkrb5,
+  hashes,
+  pname,
+  version,
+  channel,
+  installDir,
+  launcherName,
+  binaryName,
+  metaDescription,
+  ...
 }:
 stdenv.mkDerivation rec {
-  pname = "vivaldi-snapshot";
-  version = "8.0.4033.15";
+  inherit pname version;
 
   suffix =
     {
@@ -79,15 +87,8 @@ stdenv.mkDerivation rec {
     } or (throw "Unsupported system: ${stdenv.hostPlatform.system}");
 
   src = fetchurl {
-    url = "https://downloads.vivaldi.com/snapshot/vivaldi-snapshot_${version}-1_${suffix}.deb";
-    hash =
-      {
-        aarch64-linux = "sha256-t7tSHj68DOUcXxlQdQAl9qyVuz/sD8C7OGDV8L2UPVc=";
-        x86_64-linux = "sha256-IWx5TqvuEignIsnDdXJ7oYRf7NBllS9FIqdy2qJ3Tuw=";
-      }
-      .${
-        stdenv.hostPlatform.system
-      } or (throw "Unsupported system: ${stdenv.hostPlatform.system}");
+    url = "https://downloads.vivaldi.com/${channel}/${pname}_${version}-1_${suffix}.deb";
+    hash = hashes.${stdenv.hostPlatform.system} or (throw "Unsupported system: ${stdenv.hostPlatform.system}");
   };
 
   unpackPhase = ''
@@ -168,7 +169,7 @@ stdenv.mkDerivation rec {
     + lib.optionalString (stdenv.hostPlatform.is64bit) (
       ":" + lib.makeSearchPathOutput "lib" "lib64" buildInputs
     )
-    + ":$out/opt/vivaldi-snapshot/lib";
+    + ":$out/opt/${installDir}/lib";
 
   buildPhase =
     ''
@@ -178,15 +179,15 @@ stdenv.mkDerivation rec {
         patchelf \
           --set-interpreter "$(cat $NIX_CC/nix-support/dynamic-linker)" \
           --set-rpath "${libPath}" \
-          opt/vivaldi-snapshot/$f
+          opt/${installDir}/$f
       done
 
       for f in libGLESv2.so libqt5_shim.so libqt6_shim.so; do
-        patchelf --set-rpath "${libPath}" opt/vivaldi-snapshot/$f
+        patchelf --set-rpath "${libPath}" opt/${installDir}/$f
       done
     ''
     + lib.optionalString proprietaryCodecs ''
-      ln -s ${vivaldi-ffmpeg-codecs}/lib/libffmpeg.so opt/vivaldi-snapshot/libffmpeg.so.''${version%\.*\.*}
+      ln -s ${vivaldi-ffmpeg-codecs}/lib/libffmpeg.so opt/${installDir}/libffmpeg.so.''${version%\.*\.*}
     ''
     + ''
       echo "Finished patching Vivaldi binaries"
@@ -204,16 +205,16 @@ stdenv.mkDerivation rec {
       mkdir -p "$out/share"
       cp -r usr/share/{applications,xfce4} "$out"/share
       substituteInPlace "$out"/share/applications/*.desktop \
-        --replace-fail /usr/bin/vivaldi-snapshot "$out"/bin/vivaldi-snapshot
+        --replace-fail /usr/bin/${binaryName} "$out"/bin/${binaryName}
       local d
       for d in 16 24 32 48 64 128 256; do
         mkdir -p "$out"/share/icons/hicolor/''${d}x''${d}/apps
         ln -s \
-          "$out"/opt/vivaldi-snapshot/product_logo_''${d}.png \
-          "$out"/share/icons/hicolor/''${d}x''${d}/apps/vivaldi-snapshot.png
+          "$out"/opt/${installDir}/product_logo_''${d}.png \
+          "$out"/share/icons/hicolor/''${d}x''${d}/apps/${binaryName}.png
       done
       # Wrap the actual binary (vivaldi-bin), not the shell script (vivaldi)
-      wrapProgram "$out/opt/vivaldi-snapshot/vivaldi-bin" \
+      wrapProgram "$out/opt/${installDir}/vivaldi-bin" \
         --add-flags ${lib.escapeShellArg (lib.concatStringsSep " " (lib.optionals enableHardwareAcceleration [
           "--enable-gpu-rasterization"
           "--enable-zero-copy"
@@ -228,21 +229,21 @@ stdenv.mkDerivation rec {
         ''${qtWrapperArgs[@]}
       # Create bin directory and symlink to the launcher script
       mkdir "$out/bin"
-      ln -s "$out/opt/vivaldi-snapshot/vivaldi-snapshot" "$out/bin/vivaldi-snapshot"
+      ln -s "$out/opt/${installDir}/${launcherName}" "$out/bin/${binaryName}"
     ''
     + lib.optionalString enableWidevine ''
-      ln -sf ${widevine-cdm}/share/google/chrome/WidevineCdm $out/opt/vivaldi-snapshot/WidevineCdm
+      ln -sf ${widevine-cdm}/share/google/chrome/WidevineCdm $out/opt/${installDir}/WidevineCdm
     ''
     + ''
       runHook postInstall
     '';
 
   meta = {
-    description = "Browser for our Friends, powerful and personal (Snapshot)";
+    description = metaDescription;
     homepage = "https://vivaldi.com";
     license = lib.licenses.unfree;
     sourceProvenance = with lib.sourceTypes; [binaryNativeCode];
-    mainProgram = "vivaldi-snapshot";
+    mainProgram = binaryName;
     platforms = [
       "x86_64-linux"
       "aarch64-linux"

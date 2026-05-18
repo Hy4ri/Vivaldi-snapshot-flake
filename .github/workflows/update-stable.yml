@@ -13,9 +13,6 @@ jobs:
       contents: write
     steps:
       - uses: actions/checkout@v6
-        with:
-          ref: stable
-          fetch-depth: 0
 
       - uses: cachix/install-nix-action@v27
         with:
@@ -43,8 +40,8 @@ jobs:
 
           echo "Latest found: $LATEST_VERSION"
 
-          # Get current version from package.nix
-          CURRENT_VERSION=$(grep -oP 'version = "\K[^"]+' package.nix)
+          # Get current version from vivaldi-stable.nix
+          CURRENT_VERSION=$(grep -oP 'version = "\K[^"]+' vivaldi-stable.nix)
           echo "Current: $CURRENT_VERSION"
 
           if [ "$LATEST_VERSION" != "$CURRENT_VERSION" ]; then
@@ -59,13 +56,13 @@ jobs:
       - name: Update Flake
         if: steps.check.outputs.update_needed == 'true'
         run: |
-          ./update-version.sh "${{ steps.check.outputs.version }}"
+          ./update-version.sh --channel stable "${{ steps.check.outputs.version }}"
 
       - name: Commit and Push
         if: steps.check.outputs.update_needed == 'true'
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add package.nix version.json README.md
+          git add vivaldi-stable.nix version-stable.json README.md
           git commit -m "chore: update vivaldi-stable to ${{ steps.check.outputs.version }}"
-          git push origin stable
+          git push

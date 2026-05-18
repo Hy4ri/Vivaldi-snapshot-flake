@@ -1,47 +1,122 @@
 #!/usr/bin/env bash
 
-set -e
+set -euo pipefail
+
+# -------------------------------------------------------------------
+# Helper functions
+# -------------------------------------------------------------------
+
+usage() {
+  echo "Usage: $0 --channel <snapshot|stable> [version]"
+  echo ""
+  echo "  --channel  Required. Which Vivaldi variant to update (snapshot or stable)."
+  echo "  version    Optional. If omitted, you will be prompted."
+  exit 1
+}
 
 get_hash() {
   local url="$1"
   local temp_file
   temp_file=$(mktemp)
 
-  # Download to temp file
   if curl -sL "$url" -o "$temp_file"; then
-    # Calculate sha256 sum
     local raw_hash
     raw_hash=$(sha256sum "$temp_file" | cut -d' ' -f1)
     nix hash convert --hash-algo sha256 --to sri "$raw_hash"
   fi
-  # Clean up immediately
   rm -f "$temp_file"
 }
 
-get_blog_url() {
+get_blog_url_snapshot() {
   local version="$1"
-  # Extract build.patch (e.g., "7.8.3921.9" -> "3921-9")
   local build_patch
   build_patch=$(echo "$version" | sed -E 's/^[0-9]+\.[0-9]+\.([0-9]+)\.([0-9]+)$/\1-\2/')
-  
-  # Fetch snapshots page and find the matching blog post URL
+
   local blog_url
   blog_url=$(curl -sL "https://vivaldi.com/blog/snapshots/" | \
     grep -oP 'href="https://vivaldi\.com/blog/desktop/[^"]*snapshot-'"$build_patch"'/"' | \
     head -n 1 | \
     sed 's/href="//' | \
     sed 's/"$//')
-  
+
   echo "$blog_url"
 }
 
-# 1. Ask for version
-if [ -n "$1" ]; then
-    version="$1"
-    echo "Version provided from argument: $version"
+get_blog_url_stable() {
+  local version="$1"
+  local major_minor
+  major_minor=$(echo "$version" | sed -E 's/^([0-9]+)\.([0-9]+)\.[0-9]+\.[0-9]+$/\1-\2/')
+
+  local blog_url
+  blog_url=$(curl -sL "https://vivaldi.com/blog/desktop/" | \
+    grep -oP 'href="https://vivaldi\.com/blog/desktop/[^"]*vivaldi-'"$major_minor"'[^"]*/"' | \
+    head -n 1 | \
+    sed 's/href="//' | \
+    sed 's/"$//')
+
+  echo "$blog_url"
+}
+
+# -------------------------------------------------------------------
+# Parse arguments
+# -------------------------------------------------------------------
+channel=""
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --channel)
+      if [[ -z "${2:-}" ]]; then
+        echo "Error: --channel requires an argument (snapshot or stable)"
+        usage
+      fi
+      channel="$2"
+      shift 2
+      ;;
+    --help|-h)
+      usage
+      ;;
+    *)
+      # Assume it's the version
+      if [[ -z "${version:-}" ]]; then
+        version="$1"
+      else
+        echo "Error: Unexpected argument: $1"
+        usage
+      fi
+      shift
+      ;;
+  esac
+done
+
+# Validate channel
+if [[ "$channel" != "snapshot" && "$channel" != "stable" ]]; then
+  echo "Error: --channel must be 'snapshot' or 'stable', got '$channel'"
+  usage
+fi
+
+# -------------------------------------------------------------------
+# Channel-specific configuration
+# -------------------------------------------------------------------
+if [[ "$channel" == "snapshot" ]]; then
+  pname="vivaldi-snapshot"
+  target_file="vivaldi-snapshot.nix"
+  version_json="version.json"
+  url_prefix="snapshot"
+  blog_default="https://vivaldi.com/blog/snapshots/"
 else
-    echo "Current directory: $(pwd)"
-    read -p "Enter Vivaldi Snapshot version to download (e.g., 7.9.4000.1): " version
+  pname="vivaldi-stable"
+  target_file="vivaldi-stable.nix"
+  version_json="version-stable.json"
+  url_prefix="stable"
+  blog_default="https://vivaldi.com/blog/desktop/"
+fi
+
+# -------------------------------------------------------------------
+# Get version
+# -------------------------------------------------------------------
+if [[ -z "${version:-}" ]]; then
+  echo "Current directory: $(pwd)"
+  read -p "Enter Vivaldi ${channel} version to download (e.g., 7.9.4000.1): " version
 fi
 
 if [[ -z "$version" ]]; then
@@ -50,14 +125,16 @@ if [[ -z "$version" ]]; then
 fi
 
 echo "------------------------------------------------"
+echo "Variant: $channel"
 echo "Target Version: $version"
 echo "------------------------------------------------"
 
-# Define URLs
-url_amd64="https://downloads.vivaldi.com/snapshot/vivaldi-snapshot_${version}-1_amd64.deb"
-url_arm64="https://downloads.vivaldi.com/snapshot/vivaldi-snapshot_${version}-1_arm64.deb"
+# -------------------------------------------------------------------
+# Download and hash
+# -------------------------------------------------------------------
+url_amd64="https://downloads.vivaldi.com/${url_prefix}/${pname}_${version}-1_amd64.deb"
+url_arm64="https://downloads.vivaldi.com/${url_prefix}/${pname}_${version}-1_arm64.deb"
 
-# Download and Hash
 echo "Downloading and calculating hash for x86_64-linux..."
 hash_amd64_sri=$(get_hash "$url_amd64")
 
@@ -79,52 +156,68 @@ else
   echo "  Hash: $hash_arm64_sri"
 fi
 
+# -------------------------------------------------------------------
 # Fetch blog URL
+# -------------------------------------------------------------------
 echo "Fetching blog post URL..."
-blog_url=$(get_blog_url "$version")
+if [[ "$channel" == "snapshot" ]]; then
+  blog_url=$(get_blog_url_snapshot "$version")
+else
+  blog_url=$(get_blog_url_stable "$version")
+fi
+
 if [[ -z "$blog_url" ]]; then
   echo "Warning: Could not find blog post for this version. Using default."
-  blog_url="https://vivaldi.com/blog/snapshots/"
+  blog_url="$blog_default"
 else
   echo "  Blog URL: $blog_url"
 fi
 
-# Update package.nix
-package_file="package.nix"
-
-if [[ ! -f "$package_file" ]]; then
-  echo "Error: $package_file not found in current directory."
+# -------------------------------------------------------------------
+# Update target .nix file
+# -------------------------------------------------------------------
+if [[ ! -f "$target_file" ]]; then
+  echo "Error: $target_file not found in current directory."
   exit 1
 fi
 
-echo "Updating $package_file..."
+echo "Updating $target_file..."
 
-# Use a temporary file
 temp_file=$(mktemp)
 
-sed "s/version = \".*\";/version = \"$version\";/" "$package_file" >"$temp_file"
+sed "s/version = \".*\";/version = \"$version\";/" "$target_file" >"$temp_file"
 
 # Update hashes
 sed -i "s|x86_64-linux = \"sha256-.*\";|x86_64-linux = \"$hash_amd64_sri\";|" "$temp_file"
 sed -i "s|aarch64-linux = \"sha256-.*\";|aarch64-linux = \"$hash_arm64_sri\";|" "$temp_file"
 
-# Move back
-mv "$temp_file" "$package_file"
+mv "$temp_file" "$target_file"
 
-# Update version.json with version and blog URL
-echo "Updating version.json..."
-cat > version.json << EOF
+# -------------------------------------------------------------------
+# Update version JSON
+# -------------------------------------------------------------------
+echo "Updating $version_json..."
+cat > "$version_json" << EOF
 {
   "version": "$version",
   "blogUrl": "$blog_url"
 }
 EOF
 
+# -------------------------------------------------------------------
 # Update README.md badge link
+# -------------------------------------------------------------------
 echo "Updating README.md..."
-sed -i "s|](https://vivaldi.com/blog/[^)]*)|]($blog_url)|" README.md
+
+if [[ "$channel" == "snapshot" ]]; then
+  # Update the snapshot badge link (matches ](https://vivaldi.com/blog/snapshots/...))
+  sed -i "s|](https://vivaldi.com/blog/snapshots/[^)]*)|]($blog_url)|" README.md
+else
+  # Update the stable badge link (matches ](https://vivaldi.com/blog/desktop/...))
+  sed -i "s|](https://vivaldi.com/blog/desktop/[^)]*)|]($blog_url)|" README.md
+fi
 
 echo "------------------------------------------------"
-echo "Success! Updated package.nix to version $version"
-echo "Blog URL: $blog_url"
+echo "Success! Updated ${target_file} to version ${version}"
+echo "Blog URL: ${blog_url}"
 echo "------------------------------------------------"
