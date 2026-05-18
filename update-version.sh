@@ -55,13 +55,13 @@ get_blog_url_snapshot() {
 }
 
 get_blog_url_stable() {
-  local version="$1"
-  local major_minor
-  major_minor=$(echo "$version" | sed -E 's/^([0-9]+)\.([0-9]+)\.[0-9]+\.[0-9]+$/\1-\2/')
-
+  # Extract the most recent blog post from the desktop blog page
+  # (blog category pages list posts in reverse chronological order)
   local blog_url
   blog_url=$(curl -sL "https://vivaldi.com/blog/desktop/" | \
-    grep -oP 'href="https://vivaldi\.com/blog/desktop/[^"]*vivaldi-'"$major_minor"'[^"]*/"' | \
+    grep -oP 'href="https://vivaldi\.com/blog/desktop/[^"]+/"' | \
+    grep -v '/blog/desktop/$' | \
+    grep -v '/blog/desktop/page/' | \
     head -n 1 | \
     sed 's/href="//' | \
     sed 's/"$//')
