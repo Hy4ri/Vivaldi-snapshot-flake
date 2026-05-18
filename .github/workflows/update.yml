@@ -1,4 +1,4 @@
-name: Update Vivaldi Snapshot
+name: Update Vivaldi
 
 on:
   schedule:
@@ -18,18 +18,11 @@ jobs:
         with:
           nix_path: nixpkgs=channel:nixos-unstable
 
-      - name: Check for updates
-        id: check
+      # ── Snapshot check ──────────────────────────────────────────
+      - name: Check snapshot for updates
+        id: check-snapshot
         run: |
-          # Fetch the directory listing from Vivaldi's archive
-          # Sort by time/date usually works, or we extract the highest version number
-          # We'll use the 'archive' repo which lists all deb files.
-
-          echo "Fetching latest version..."
-
-          # Get list of files, find the one matching the pattern, sort by version (using sort -V), tail the last one
-          # Pattern: vivaldi-snapshot_7.9.4000.1-1_amd64.deb
-
+          echo "Fetching latest snapshot version..."
           LATEST_VERSION=$(curl -s "https://repo.vivaldi.com/archive/deb/pool/main/" | \
             grep -oP 'vivaldi-snapshot_\d+\.\d+\.\d+\.\d+-1_amd64\.deb' | \
             sed -E 's/vivaldi-snapshot_([0-9.]+)-1_amd64.deb/\1/' | \
@@ -37,35 +30,84 @@ jobs:
             tail -n 1)
 
           if [ -z "$LATEST_VERSION" ]; then
-            echo "Could not find latest version."
+            echo "Could not find latest snapshot version."
             exit 1
           fi
-
           echo "Latest found: $LATEST_VERSION"
 
-          # Get current version from vivaldi-snapshot.nix
           CURRENT_VERSION=$(grep -oP 'version = "\K[^"]+' vivaldi-snapshot.nix)
           echo "Current: $CURRENT_VERSION"
 
           if [ "$LATEST_VERSION" != "$CURRENT_VERSION" ]; then
-            echo "New version available!"
+            echo "New snapshot available!"
             echo "update_needed=true" >> $GITHUB_OUTPUT
             echo "version=$LATEST_VERSION" >> $GITHUB_OUTPUT
           else
-            echo "Already up to date."
+            echo "Snapshot up to date."
             echo "update_needed=false" >> $GITHUB_OUTPUT
           fi
 
-      - name: Update Flake
-        if: steps.check.outputs.update_needed == 'true'
+      # ── Stable check ────────────────────────────────────────────
+      - name: Check stable for updates
+        id: check-stable
         run: |
-          ./update-version.sh --channel snapshot "${{ steps.check.outputs.version }}"
+          echo "Fetching latest stable version..."
+          LATEST_VERSION=$(curl -s "https://repo.vivaldi.com/archive/deb/pool/main/" | \
+            grep -oP 'vivaldi-stable_\d+\.\d+\.\d+\.\d+-1_amd64\.deb' | \
+            sed -E 's/vivaldi-stable_([0-9.]+)-1_amd64.deb/\1/' | \
+            sort -V | \
+            tail -n 1)
 
+          if [ -z "$LATEST_VERSION" ]; then
+            echo "Could not find latest stable version."
+            exit 1
+          fi
+          echo "Latest found: $LATEST_VERSION"
+
+          CURRENT_VERSION=$(grep -oP 'version = "\K[^"]+' vivaldi-stable.nix)
+          echo "Current: $CURRENT_VERSION"
+
+          if [ "$LATEST_VERSION" != "$CURRENT_VERSION" ]; then
+            echo "New stable available!"
+            echo "update_needed=true" >> $GITHUB_OUTPUT
+            echo "version=$LATEST_VERSION" >> $GITHUB_OUTPUT
+          else
+            echo "Stable up to date."
+            echo "update_needed=false" >> $GITHUB_OUTPUT
+          fi
+
+      # ── Update snapshot (if needed) ─────────────────────────────
+      - name: Update snapshot
+        if: steps.check-snapshot.outputs.update_needed == 'true'
+        run: |
+          ./update-version.sh --channel snapshot "${{ steps.check-snapshot.outputs.version }}"
+
+      # ── Update stable (if needed) ──────────────────────────────
+      - name: Update stable
+        if: steps.check-stable.outputs.update_needed == 'true'
+        run: |
+          ./update-version.sh --channel stable "${{ steps.check-stable.outputs.version }}"
+
+      # ── Commit and push (if either updated) ────────────────────
       - name: Commit and Push
-        if: steps.check.outputs.update_needed == 'true'
+        if: steps.check-snapshot.outputs.update_needed == 'true' || steps.check-stable.outputs.update_needed == 'true'
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add vivaldi-snapshot.nix version.json README.md
-          git commit -m "chore: update vivaldi-snapshot to ${{ steps.check.outputs.version }}"
+
+          # Build commit message dynamically
+          MSG="chore: update"
+          if [ "${{ steps.check-snapshot.outputs.update_needed }}" == "true" ]; then
+            MSG="$MSG vivaldi-snapshot to ${{ steps.check-snapshot.outputs.version }}"
+          fi
+          if [ "${{ steps.check-stable.outputs.update_needed }}" == "true" ]; then
+            if [ "${{ steps.check-snapshot.outputs.update_needed }}" == "true" ]; then
+              MSG="$MSG and"
+            fi
+            MSG="$MSG vivaldi-stable to ${{ steps.check-stable.outputs.version }}"
+          fi
+
+          # Stage all changes and commit
+          git add -A
+          git commit -m "$MSG"
           git push
