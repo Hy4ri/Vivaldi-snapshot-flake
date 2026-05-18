@@ -7,10 +7,11 @@ set -euo pipefail
 # -------------------------------------------------------------------
 
 usage() {
-  echo "Usage: $0 --channel <snapshot|stable> [version]"
+  echo "Usage: $0 --channel <snapshot|stable> [--blog-url <url>] [version]"
   echo ""
-  echo "  --channel  Required. Which Vivaldi variant to update (snapshot or stable)."
-  echo "  version    Optional. If omitted, you will be prompted."
+  echo "  --channel   Required. Which Vivaldi variant to update (snapshot or stable)."
+  echo "  --blog-url  Optional. Manually specify the blog post URL (for RC releases)."
+  echo "  version     Optional. If omitted, you will be prompted."
   exit 1
 }
 
@@ -29,15 +30,26 @@ get_hash() {
 
 get_blog_url_snapshot() {
   local version="$1"
-  local build_patch
+  local build_patch major_minor
   build_patch=$(echo "$version" | sed -E 's/^[0-9]+\.[0-9]+\.([0-9]+)\.([0-9]+)$/\1-\2/')
+  major_minor=$(echo "$version" | sed -E 's/^([0-9]+)\.([0-9]+)\.[0-9]+\.[0-9]+$/\1-\2/')
 
+  # Try matching snapshot-BUILD-PATCH pattern first (regular snapshots)
   local blog_url
   blog_url=$(curl -sL "https://vivaldi.com/blog/snapshots/" | \
     grep -oP 'href="https://vivaldi\.com/blog/desktop/[^"]*snapshot-'"$build_patch"'/"' | \
     head -n 1 | \
     sed 's/href="//' | \
     sed 's/"$//')
+
+  # Fallback: try matching MAJOR-MINOR-rc- pattern (RC releases)
+  if [[ -z "$blog_url" ]]; then
+    blog_url=$(curl -sL "https://vivaldi.com/blog/snapshots/" | \
+      grep -oP 'href="https://vivaldi\.com/blog/desktop/[^"]*'"$major_minor"'-rc-[^"]*/"' | \
+      head -n 1 | \
+      sed 's/href="//' | \
+      sed 's/"$//')
+  fi
 
   echo "$blog_url"
 }
@@ -61,6 +73,7 @@ get_blog_url_stable() {
 # Parse arguments
 # -------------------------------------------------------------------
 channel=""
+blog_url_override=""
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -70,6 +83,14 @@ while [[ $# -gt 0 ]]; do
         usage
       fi
       channel="$2"
+      shift 2
+      ;;
+    --blog-url)
+      if [[ -z "${2:-}" ]]; then
+        echo "Error: --blog-url requires an argument"
+        usage
+      fi
+      blog_url_override="$2"
       shift 2
       ;;
     --help|-h)
@@ -159,18 +180,23 @@ fi
 # -------------------------------------------------------------------
 # Fetch blog URL
 # -------------------------------------------------------------------
-echo "Fetching blog post URL..."
-if [[ "$channel" == "snapshot" ]]; then
-  blog_url=$(get_blog_url_snapshot "$version")
+if [[ -n "$blog_url_override" ]]; then
+  blog_url="$blog_url_override"
+  echo "  Blog URL (overridden): $blog_url"
 else
-  blog_url=$(get_blog_url_stable "$version")
-fi
+  echo "Fetching blog post URL..."
+  if [[ "$channel" == "snapshot" ]]; then
+    blog_url=$(get_blog_url_snapshot "$version")
+  else
+    blog_url=$(get_blog_url_stable "$version")
+  fi
 
-if [[ -z "$blog_url" ]]; then
-  echo "Warning: Could not find blog post for this version. Using default."
-  blog_url="$blog_default"
-else
-  echo "  Blog URL: $blog_url"
+  if [[ -z "$blog_url" ]]; then
+    echo "Warning: Could not find blog post for this version. Using default."
+    blog_url="$blog_default"
+  else
+    echo "  Blog URL: $blog_url"
+  fi
 fi
 
 # -------------------------------------------------------------------
@@ -210,8 +236,10 @@ EOF
 echo "Updating README.md..."
 
 if [[ "$channel" == "snapshot" ]]; then
-  # Update the snapshot badge link (matches ](https://vivaldi.com/blog/snapshots/...))
+  # Update the snapshot badge link — match both /blog/snapshots/ and /blog/desktop/ URLs
+  # (RC release blog URLs live under /blog/desktop/)
   sed -i "s|](https://vivaldi.com/blog/snapshots/[^)]*)|]($blog_url)|" README.md
+  sed -i "s|](https://vivaldi.com/blog/desktop/[^)]*)|]($blog_url)|" README.md
 else
   # Update the stable badge link (matches ](https://vivaldi.com/blog/desktop/...))
   sed -i "s|](https://vivaldi.com/blog/desktop/[^)]*)|]($blog_url)|" README.md
