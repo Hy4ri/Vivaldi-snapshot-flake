@@ -23,7 +23,6 @@
   dbus,
   cups,
   libexif,
-  ffmpeg,
   systemd,
   libva,
   libGL,
@@ -62,7 +61,7 @@
   commandLineArgs ? "",
   pulseSupport ? stdenv.hostPlatform.isLinux,
   libpulseaudio,
-  kerberosSupport ? true,
+  kerberosSupport ? false,
   libkrb5,
   hashes,
   pname,
@@ -137,7 +136,6 @@ stdenv.mkDerivation rec {
       gtk3
       gdk-pixbuf
       libexif
-      ffmpeg
       systemd
       libva
       qt6.qtbase
