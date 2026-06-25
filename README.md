@@ -1,6 +1,6 @@
 # Vivaldi Flake
 
-[![Vivaldi Snapshot](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fraw.githubusercontent.com%2FHy4ri%2Fvivaldi-snapshot-flake%2Fmain%2Fversion.json&query=%24.version&label=vivaldi-snapshot&color=ef3939&logo=vivaldi&link=https%3A%2F%2Fraw.githubusercontent.com%2FHy4ri%2Fvivaldi-snapshot-flake%2Fmain%2Fversion.json)](https://vivaldi.com/blog/desktop/a-version-spoofing-test-vivaldi-browser-snapshot-4078-4/)
+[![Vivaldi Snapshot](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fraw.githubusercontent.com%2FHy4ri%2Fvivaldi-snapshot-flake%2Fmain%2Fversion.json&query=%24.version&label=vivaldi-snapshot&color=ef3939&logo=vivaldi&link=https%3A%2F%2Fraw.githubusercontent.com%2FHy4ri%2Fvivaldi-snapshot-flake%2Fmain%2Fversion.json)](https://vivaldi.com/blog/desktop/vivaldi-8-1-bumped-to-chromium-150-vivaldi-browser-snapshot-4085-3/)
 [![Snapshot Update Status](https://img.shields.io/github/actions/workflow/status/Hy4ri/vivaldi-snapshot-flake/update.yml?branch=main&label=snapshot-update)](https://github.com/Hy4ri/vivaldi-snapshot-flake/actions/workflows/update.yml)
 
 [![Vivaldi Stable](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fraw.githubusercontent.com%2FHy4ri%2Fvivaldi-snapshot-flake%2Fmain%2Fversion-stable.json&query=%24.version&label=vivaldi-stable&color=ef3939&logo=vivaldi&link=https%3A%2F%2Fraw.githubusercontent.com%2FHy4ri%2Fvivaldi-snapshot-flake%2Fmain%2Fversion-stable.json)](https://vivaldi.com/blog/desktop/minor-update-nine-8-0/)
