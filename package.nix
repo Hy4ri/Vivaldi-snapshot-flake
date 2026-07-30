@@ -181,7 +181,10 @@ stdenv.mkDerivation rec {
       done
 
       for f in libGLESv2.so libqt5_shim.so libqt6_shim.so; do
-        patchelf --set-rpath "${libPath}" opt/${installDir}/$f
+        so=opt/${installDir}/$f
+        if [ -f "$so" ]; then
+          patchelf --set-rpath "${libPath}" "$so"
+        fi
       done
     ''
     + lib.optionalString proprietaryCodecs ''
