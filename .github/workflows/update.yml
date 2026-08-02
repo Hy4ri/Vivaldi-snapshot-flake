@@ -11,6 +11,10 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write
+      issues: write
+    outputs:
+      fail_reason_snapshot: ${{ steps.check-snapshot.outputs.fail_reason }}
+      fail_reason_stable: ${{ steps.check-stable.outputs.fail_reason }}
     steps:
       - uses: actions/checkout@v6
 
@@ -21,22 +25,37 @@ jobs:
       # ── Snapshot check ──────────────────────────────────────────
       - name: Check snapshot for updates
         id: check-snapshot
+        continue-on-error: true
         run: |
           echo "Fetching latest snapshot version..."
-          LATEST_VERSION=$(curl -s "https://repo.vivaldi.com/archive/deb/pool/main/" | \
+
+          ERR_LOG="$(mktemp)"
+          die() {
+            echo "fail_reason=$1" | tr -d '\n\r' >> "$GITHUB_OUTPUT"
+            echo "$1" >&2
+            exit 1
+          }
+          # Harden the fetch: fail fast on connect, retry transient errors,
+          # and capture the last error into ERR_LOG for the failure report.
+          fetch_page() {
+            curl -fsSL --connect-timeout 10 --max-time 30 --retry 3 --retry-delay 3 --retry-all-errors "$1" 2>>"$ERR_LOG" || true
+          }
+
+          LATEST_VERSION=$(fetch_page "https://repo.vivaldi.com/archive/deb/pool/main/" | \
             grep -oP 'vivaldi-snapshot_\d+\.\d+\.\d+\.\d+-1_amd64\.deb' | \
             sed -E 's/vivaldi-snapshot_([0-9.]+)-1_amd64.deb/\1/' | \
             sort -V | \
             tail -n 1)
 
           if [ -z "$LATEST_VERSION" ]; then
-            echo "Could not find latest snapshot version."
-            exit 1
+            die "Could not find latest snapshot version on repo.vivaldi.com. Last error: $(tail -n 1 "$ERR_LOG" 2>/dev/null || echo 'unknown')"
           fi
           echo "Latest found: $LATEST_VERSION"
 
           CURRENT_VERSION=$(grep -oP 'version = "\K[^"]+' vivaldi-snapshot.nix)
           echo "Current: $CURRENT_VERSION"
+
+          echo "fail_reason=" >> "$GITHUB_OUTPUT"
 
           if [ "$LATEST_VERSION" != "$CURRENT_VERSION" ]; then
             echo "New snapshot available!"
@@ -50,22 +69,37 @@ jobs:
       # ── Stable check ────────────────────────────────────────────
       - name: Check stable for updates
         id: check-stable
+        continue-on-error: true
         run: |
           echo "Fetching latest stable version..."
-          LATEST_VERSION=$(curl -s "https://repo.vivaldi.com/archive/deb/pool/main/" | \
+
+          ERR_LOG="$(mktemp)"
+          die() {
+            echo "fail_reason=$1" | tr -d '\n\r' >> "$GITHUB_OUTPUT"
+            echo "$1" >&2
+            exit 1
+          }
+          # Harden the fetch: fail fast on connect, retry transient errors,
+          # and capture the last error into ERR_LOG for the failure report.
+          fetch_page() {
+            curl -fsSL --connect-timeout 10 --max-time 30 --retry 3 --retry-delay 3 --retry-all-errors "$1" 2>>"$ERR_LOG" || true
+          }
+
+          LATEST_VERSION=$(fetch_page "https://repo.vivaldi.com/archive/deb/pool/main/" | \
             grep -oP 'vivaldi-stable_\d+\.\d+\.\d+\.\d+-1_amd64\.deb' | \
             sed -E 's/vivaldi-stable_([0-9.]+)-1_amd64.deb/\1/' | \
             sort -V | \
             tail -n 1)
 
           if [ -z "$LATEST_VERSION" ]; then
-            echo "Could not find latest stable version."
-            exit 1
+            die "Could not find latest stable version on repo.vivaldi.com. Last error: $(tail -n 1 "$ERR_LOG" 2>/dev/null || echo 'unknown')"
           fi
           echo "Latest found: $LATEST_VERSION"
 
           CURRENT_VERSION=$(grep -oP 'version = "\K[^"]+' vivaldi-stable.nix)
           echo "Current: $CURRENT_VERSION"
+
+          echo "fail_reason=" >> "$GITHUB_OUTPUT"
 
           if [ "$LATEST_VERSION" != "$CURRENT_VERSION" ]; then
             echo "New stable available!"
@@ -111,3 +145,53 @@ jobs:
           git add -A
           git commit -m "$MSG"
           git push
+
+      - name: Close resolved failure issues
+        if: success()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          LABEL="auto-failure"
+          gh label create "$LABEL" --repo "$GITHUB_REPOSITORY" 2>/dev/null || true
+          OPEN=$(gh issue list --repo "$GITHUB_REPOSITORY" --label "$LABEL" --state open --json number --jq '.[].number')
+          for n in $OPEN; do
+            echo "Closing auto-failure issue #$n (workflow succeeded again)"
+            gh issue close "$n" --repo "$GITHUB_REPOSITORY" --comment "The Update Vivaldi workflow succeeded again — closing automatically."
+          done
+
+      # continue-on-error above would let the job pass; fail the run when a check failed.
+      - name: Fail the run
+        if: steps.check-snapshot.outcome == 'failure' || steps.check-stable.outcome == 'failure'
+        run: exit 1
+
+  report-failure:
+    runs-on: ubuntu-latest
+    needs: update-vivaldi
+    if: failure()
+    permissions:
+      issues: write
+    steps:
+      - name: Open failure issue
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          LABEL="auto-failure"
+          gh label create "$LABEL" --repo "$GITHUB_REPOSITORY" 2>/dev/null || true
+
+          R_SNAPSHOT="${{ needs.update-vivaldi.outputs.fail_reason_snapshot }}"
+          R_STABLE="${{ needs.update-vivaldi.outputs.fail_reason_stable }}"
+          REASON=""
+          [ -n "$R_SNAPSHOT" ] && REASON="snapshot: $R_SNAPSHOT"
+          [ -n "$R_STABLE" ] && REASON="$REASON${REASON:+ | }stable: $R_STABLE"
+          [ -n "$REASON" ] || REASON="See the failed run logs for details."
+
+          TITLE="[auto] Update Vivaldi workflow failed"
+          BODY=$(printf 'The **Update Vivaldi** workflow failed on %s.\n\n- Run: %s/%s/actions/runs/%s\n- Job: update-vivaldi\n\n**Failure reason:** %s\n\n_This issue was created automatically. It will be closed automatically when the workflow succeeds again._\n' "$(date -u +'%Y-%m-%d %H:%M UTC')" "$GITHUB_SERVER_URL" "$GITHUB_REPOSITORY" "$GITHUB_RUN_ID" "$REASON")
+
+          EXISTING=$(gh issue list --repo "$GITHUB_REPOSITORY" --label "$LABEL" --state open --json number --jq '.[0].number // empty')
+          if [ -n "$EXISTING" ]; then
+            echo "Failure issue #$EXISTING already open — adding comment instead."
+            gh issue comment "$EXISTING" --repo "$GITHUB_REPOSITORY" --body "Still failing on run $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID — $REASON"
+          else
+            gh issue create --repo "$GITHUB_REPOSITORY" --title "$TITLE" --label "$LABEL" --body "$BODY"
+          fi
