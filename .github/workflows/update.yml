@@ -147,7 +147,7 @@ jobs:
           git push
 
       - name: Close resolved failure issues
-        if: success()
+        if: steps.check-snapshot.outcome == 'success' && steps.check-stable.outcome == 'success'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
