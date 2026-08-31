@@ -27,12 +27,12 @@
       systemInfo = {
         "x86_64-linux" = {
           revision = "117";
-          hash = "1yzv1jav8cq5rz76ifhf2w7z3vh7zaf66abq8g160b0dbyh3nhb0";
+          hash = "sha256-YEE7oF8NLGDCQ3gpY5z6B+7xDxcOumjOzwUztJUM+/s=";
           folder = "chromium-ffmpeg-git-2026-05-18";
         };
         "aarch64-linux" = {
           revision = "116";
-          hash = "16ifx9jj3fc9an5n5znixszhdyf2icj7mc81rir596jy1wwra6g1";
+          hash = "sha256-4RmVOQ9emlRyzAGxeiSLwvkGv+7R/mKLVYm5IWXqLpo=";
           folder = "chromium-ffmpeg-git-2026-03-16";
         };
       }.${system} or (throw "Unsupported system for custom codecs: ${system}");
@@ -43,7 +43,7 @@
 
         src = pkgs.fetchurl {
           url = "https://api.snapcraft.io/api/v1/snaps/download/XXzVIXswXKHqlUATPqGCj2w2l7BxosS8_${systemInfo.revision}.snap";
-          sha256 = systemInfo.hash;
+          hash = systemInfo.hash;
         };
 
         nativeBuildInputs = [ pkgs.squashfsTools ];
@@ -77,10 +77,20 @@
         enableWidevine = true;
         widevine-cdm = final.widevine-cdm;
       };
+      vivaldi-stable = final.callPackage ./vivaldi-stable.nix {
+        vivaldi-ffmpeg-codecs = customFFmpegCodecs final;
+        enableWidevine = true;
+        widevine-cdm = final.widevine-cdm;
+      };
     };
 
     overlays.stable = final: _prev: {
       vivaldi-stable = final.callPackage ./vivaldi-stable.nix {
+        vivaldi-ffmpeg-codecs = customFFmpegCodecs final;
+        enableWidevine = true;
+        widevine-cdm = final.widevine-cdm;
+      };
+      vivaldi-snapshot = final.callPackage ./vivaldi-snapshot.nix {
         vivaldi-ffmpeg-codecs = customFFmpegCodecs final;
         enableWidevine = true;
         widevine-cdm = final.widevine-cdm;

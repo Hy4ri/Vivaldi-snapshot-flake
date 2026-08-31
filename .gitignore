@@ -1,0 +1,30 @@
+# Nix
+result
+result-*
+/.direnv/
+.direnvrc
+
+# Env / secrets
+.env
+.env.*
+!.env.example
+
+# Build artifacts
+/dist/
+/build/
+*.log
+*.tmp
+
+# OS files
+.DS_Store
+Thumbs.db
+*~
+
+# Editor
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Temporary
+/tmp/

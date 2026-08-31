@@ -46,6 +46,7 @@
   libdrm,
   libgbm,
   vulkan-loader,
+  addDriverRunpath,
   nss,
   nspr,
   patchelf,
@@ -167,7 +168,7 @@ stdenv.mkDerivation rec {
     + lib.optionalString (stdenv.hostPlatform.is64bit) (
       ":" + lib.makeSearchPathOutput "lib" "lib64" buildInputs
     )
-    + ":$out/opt/${installDir}/lib";
+    + ":$out/opt/${installDir}:$out/opt/${installDir}/lib";
 
   buildPhase =
     ''
@@ -204,7 +205,10 @@ stdenv.mkDerivation rec {
       mkdir -p "$out"
       cp -r opt "$out"
       mkdir -p "$out/share"
-      cp -r usr/share/{applications,xfce4} "$out"/share
+      cp -r usr/share/applications "$out/share"
+      if [ -d usr/share/xfce4 ]; then
+        cp -r usr/share/xfce4 "$out/share"
+      fi
       substituteInPlace "$out"/share/applications/*.desktop \
         --replace-fail /usr/bin/${binaryName} "$out"/bin/${binaryName}
       local d
@@ -214,8 +218,15 @@ stdenv.mkDerivation rec {
           "$out"/opt/${installDir}/product_logo_''${d}.png \
           "$out"/share/icons/hicolor/''${d}x''${d}/apps/${binaryName}.png
       done
-      # Wrap the actual binary (vivaldi-bin), not the shell script (vivaldi)
-      wrapProgram "$out/opt/${installDir}/vivaldi-bin" \
+      # Replace bundled vulkan-loader with NixOS-patched one for Vulkan ICD discovery
+      if [ -f "$out/opt/${installDir}/libvulkan.so.1" ]; then
+        rm "$out/opt/${installDir}/libvulkan.so.1"
+        ln -s "${lib.getLib vulkan-loader}/lib/libvulkan.so.1" "$out/opt/${installDir}/libvulkan.so.1"
+      fi
+      # Create bin directory and symlink to the launcher script (wrap launcher, not vivaldi-bin)
+      mkdir -p "$out/bin"
+      ln -s "$out/opt/${installDir}/${launcherName}" "$out/bin/${binaryName}"
+      wrapProgram "$out/bin/${binaryName}" \
         --add-flags ${lib.escapeShellArg (lib.concatStringsSep " " (lib.optionals enableHardwareAcceleration [
           "--enable-gpu-rasterization"
           "--enable-zero-copy"
@@ -224,13 +235,10 @@ stdenv.mkDerivation rec {
           "--ignore-gpu-blocklist"
         ]
         ++ lib.optionals (commandLineArgs != "") [commandLineArgs]))} \
-        --prefix XDG_DATA_DIRS : ${gtk3}/share/gsettings-schemas/${gtk3.name}/ \
+        --prefix XDG_DATA_DIRS : "${addDriverRunpath.driverLink}/share:${gtk3}/share/gsettings-schemas/${gtk3.name}" \
         --prefix LD_LIBRARY_PATH : ${libPath} \
         --prefix PATH : ${coreutils}/bin \
         ''${qtWrapperArgs[@]}
-      # Create bin directory and symlink to the launcher script
-      mkdir "$out/bin"
-      ln -s "$out/opt/${installDir}/${launcherName}" "$out/bin/${binaryName}"
     ''
     + lib.optionalString enableWidevine ''
       ln -sf ${widevine-cdm}/share/google/chrome/WidevineCdm $out/opt/${installDir}/WidevineCdm
@@ -245,6 +253,11 @@ stdenv.mkDerivation rec {
     license = lib.licenses.unfree;
     sourceProvenance = with lib.sourceTypes; [binaryNativeCode];
     mainProgram = binaryName;
+    maintainers = with lib.maintainers; [
+      marcusramberg
+      max06
+      wineee
+    ];
     platforms = [
       "x86_64-linux"
       "aarch64-linux"
