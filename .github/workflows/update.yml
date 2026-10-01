@@ -13,7 +13,7 @@ jobs:
       contents: write
       issues: write
     outputs:
-      fail_reason_snapshot: ${{ steps.check-snapshot.outputs.fail_reason }}
+      fail_reason_snapshot: ${{ steps.build_verify.outputs.fail_reason || steps.check-snapshot.outputs.fail_reason }}
       fail_reason_stable: ${{ steps.check-stable.outputs.fail_reason }}
     steps:
       - uses: actions/checkout@v6
@@ -122,9 +122,25 @@ jobs:
         run: |
           ./update-version.sh --channel stable "${{ steps.check-stable.outputs.version }}"
 
+      - name: Verify Builds
+        id: build_verify
+        if: steps.check-snapshot.outputs.update_needed == 'true' || steps.check-stable.outputs.update_needed == 'true'
+        continue-on-error: true
+        run: |
+          BUILD_LOG="$(mktemp)"
+          echo "Building vivaldi packages to verify update..."
+          TARGETS=""
+          [ "${{ steps.check-snapshot.outputs.update_needed }}" == "true" ] && TARGETS="$TARGETS .#vivaldi-snapshot"
+          [ "${{ steps.check-stable.outputs.update_needed }}" == "true" ] && TARGETS="$TARGETS .#vivaldi-stable"
+          if ! nix build $TARGETS --no-link 2>&1 | tee "$BUILD_LOG"; then
+            ERR_MSG="Package build failed after version update. Log snippet: $(tail -n 20 "$BUILD_LOG")"
+            echo "fail_reason=$ERR_MSG" | tr '\n\r' '  ' >> "$GITHUB_OUTPUT"
+            exit 1
+          fi
+
       # ── Commit and push (if either updated) ────────────────────
       - name: Commit and Push
-        if: steps.check-snapshot.outputs.update_needed == 'true' || steps.check-stable.outputs.update_needed == 'true'
+        if: (steps.check-snapshot.outputs.update_needed == 'true' || steps.check-stable.outputs.update_needed == 'true') && steps.build_verify.outcome == 'success'
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
@@ -147,7 +163,7 @@ jobs:
           git push
 
       - name: Close resolved failure issues
-        if: steps.check-snapshot.outcome == 'success' && steps.check-stable.outcome == 'success'
+        if: steps.check-snapshot.outcome == 'success' && steps.check-stable.outcome == 'success' && (steps.build_verify.outcome == 'success' || (steps.check-snapshot.outputs.update_needed != 'true' && steps.check-stable.outputs.update_needed != 'true'))
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
@@ -161,7 +177,7 @@ jobs:
 
       # continue-on-error above would let the job pass; fail the run when a check failed.
       - name: Fail the run
-        if: steps.check-snapshot.outcome == 'failure' || steps.check-stable.outcome == 'failure'
+        if: steps.check-snapshot.outcome == 'failure' || steps.check-stable.outcome == 'failure' || steps.build_verify.outcome == 'failure'
         run: exit 1
 
   report-failure:
