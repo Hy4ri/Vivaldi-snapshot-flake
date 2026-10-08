@@ -122,6 +122,10 @@ jobs:
         run: |
           ./update-version.sh --channel stable "${{ steps.check-stable.outputs.version }}"
 
+      - name: Update flake.lock
+        if: steps.check-snapshot.outputs.update_needed == 'true' || steps.check-stable.outputs.update_needed == 'true'
+        run: nix flake update
+
       - name: Verify Builds
         id: build_verify
         if: steps.check-snapshot.outputs.update_needed == 'true' || steps.check-stable.outputs.update_needed == 'true'
