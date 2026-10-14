@@ -217,6 +217,11 @@ stdenv.mkDerivation rec {
         ln -s \
           "$out"/opt/${installDir}/product_logo_''${d}.png \
           "$out"/share/icons/hicolor/''${d}x''${d}/apps/${binaryName}.png
+        if [ "${launcherName}" != "${binaryName}" ]; then
+          ln -s \
+            "$out"/opt/${installDir}/product_logo_''${d}.png \
+            "$out"/share/icons/hicolor/''${d}x''${d}/apps/${launcherName}.png
+        fi
       done
       # Replace bundled vulkan-loader with NixOS-patched one for Vulkan ICD discovery
       if [ -f "$out/opt/${installDir}/libvulkan.so.1" ]; then
@@ -239,6 +244,9 @@ stdenv.mkDerivation rec {
         --prefix LD_LIBRARY_PATH : ${libPath} \
         --prefix PATH : ${coreutils}/bin \
         ''${qtWrapperArgs[@]}
+      if [ "${launcherName}" != "${binaryName}" ]; then
+        ln -s "$out/bin/${binaryName}" "$out/bin/${launcherName}"
+      fi
     ''
     + lib.optionalString enableWidevine ''
       ln -sf ${widevine-cdm}/share/google/chrome/WidevineCdm $out/opt/${installDir}/WidevineCdm

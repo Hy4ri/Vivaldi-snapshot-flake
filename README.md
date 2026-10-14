@@ -55,12 +55,12 @@ nixpkgs.overlays = [
 ```nix
 # NixOS
 environment.systemPackages = with pkgs; [
-  vivaldi-snapshot   # or vivaldi-stable
+  vivaldi-snapshot   # or vivaldi-stable / vivaldi
 ];
 
 # Home Manager
 home.packages = with pkgs; [
-  vivaldi-snapshot   # or vivaldi-stable
+  vivaldi-snapshot   # or vivaldi-stable / vivaldi
 ];
 ```
 

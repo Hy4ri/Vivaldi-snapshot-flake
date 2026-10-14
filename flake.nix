@@ -68,6 +68,7 @@
     in {
       vivaldi-snapshot = pkgs.callPackage ./vivaldi-snapshot.nix commonArgs;
       vivaldi-stable = pkgs.callPackage ./vivaldi-stable.nix commonArgs;
+      vivaldi = self.packages.${system}.vivaldi-stable;
       default = self.packages.${system}.vivaldi-snapshot;
     });
 
@@ -82,6 +83,7 @@
         enableWidevine = true;
         widevine-cdm = final.widevine-cdm;
       };
+      vivaldi = final.vivaldi-stable;
     };
 
     overlays.stable = final: _prev: {
@@ -95,6 +97,7 @@
         enableWidevine = true;
         widevine-cdm = final.widevine-cdm;
       };
+      vivaldi = final.vivaldi-stable;
     };
   };
 }
