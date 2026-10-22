@@ -1,14 +1,14 @@
 { callPackage, ... }@args:
 callPackage ./package.nix (args // {
   pname = "vivaldi-stable";
-  version = "8.2.4133.89";
+  version = "8.2.4133.91";
   channel = "stable";
   installDir = "vivaldi";
   launcherName = "vivaldi";
   binaryName = "vivaldi-stable";
   metaDescription = "Browser for our Friends, powerful and personal";
   hashes = {
-    x86_64-linux = "sha256-XajkvUyWpJJkBhHW+iNyf6DjFGo0bSR99XIHmn1fJ0g=";
-    aarch64-linux = "sha256-f+iwFBr34bHMhHEP3NjMG8qKQlwYCjaKzabyaL0Y/Ag=";
+    x86_64-linux = "sha256-eoVzU11vLb/p4r3oUiISgFh6e9/jfmxJvroSIAcur9A=";
+    aarch64-linux = "sha256-yz58olLUjOZ1dmnsTu179KovyehycSGXvRGR9aGGUGo=";
   };
 })
