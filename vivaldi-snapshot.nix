@@ -1,14 +1,14 @@
 { callPackage, ... }@args:
 callPackage ./package.nix (args // {
   pname = "vivaldi-snapshot";
-  version = "8.3.4191.15";
+  version = "8.3.4191.19";
   channel = "snapshot";
   installDir = "vivaldi-snapshot";
   launcherName = "vivaldi-snapshot";
   binaryName = "vivaldi-snapshot";
   metaDescription = "Browser for our Friends, powerful and personal (Snapshot)";
   hashes = {
-    x86_64-linux = "sha256-H3zilzjjXWuNB9dGqQ0p7ivavgCKM+eMHyAyW0z+POo=";
-    aarch64-linux = "sha256-Gb9Lj6KJH0zlgLkPVLUSFrNbuZUl9u4QphKMF9VJW1o=";
+    x86_64-linux = "sha256-yxJw+wza1nxVrqjAx3gcd1v9TQvmkGupc5Qucwedf1k=";
+    aarch64-linux = "sha256-vAM0gTIS2XFBObWNa0M5mN4DfIKAUD2Q0RCH7Xycyn0=";
   };
 })
